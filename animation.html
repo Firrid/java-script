@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+	<meta charset="UTF-8">  <!-- znaki regionalne -->
+	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, maximum-scale=1">
+	<title> Animation</title>
+	<style>  <!-- kod css -->
+	body
+	{
+		<!-- usunięcie domyslnych marginesow przegladarek: -->
+		margin: 0;
+		padding: 0; 
+		overflow: hidden; <!-- ukrycie suwakow i funkcji przesuwania ekranu -->
+		
+	}
+	
+	canvas
+	{
+		background-color : #a10ad2;
+	}
+
+	.onRetina
+	{
+		-webkit-transform: scale(0.5);
+		-moz-transform: scale(0.5);
+		-ms-transform: scale(0.5);
+		-o-transform: scale(0.5);
+		transform: scale(0.5);
+		
+		-webkit-transform-origin: 0 0;
+		-moz-transform-origin: 0 0;
+		-ms-transform-origin: 0 0;
+		-o-transform-origin: 0 0;
+		transform-origin: 0 0;
+		
+	}
+	</style>
+</head>
+
+<body>
+	<script src="modernizr-3.6.0.min.js"></script> <!-- modernizr.com -->
+	<script src="easing.js"></script>
+	<script src="rAF.js"></script>  <!-- requestAnimationFrame -->
+	<script>  <!-- kod javascript -->
+		var my_canvas = document.createElement('canvas');
+		var ctx = my_canvas.getContext('2d');
+		
+		var retinaBoost = devicePixelRatio && devicePixelRatio>1 && ctx.webkitBackingStorePixelRatio 
+		&& webkitBackingStorePixelRatio!=devicePixelRatio;
+		
+		if(retinaBoost)
+		{
+			my_canvas.className = 'onRetina';
+
+		}
+		
+		layout();
+		
+		window.addEventListener('resize', layout, false);
+		
+		var touches = [];
+		
+		if(!Modernizr.touch)
+		{
+			window.addEventListener('mousemove', onMove, false);
+			touches.push( {pageX:Math.round(my_canvas.width/2), pageY:Math.round(my_canvas.height/2)});
+		}
+		else
+		{
+			//nasluchiwanie zdarzen dotykowych:
+			window.addEventListener('touchstart', onMove, false);
+			window.addEventListener('touchmove', onMove, false);
+			window.addEventListener('touchend', onMove, false);
+		}
+		
+		
+		
+		
+		
+		
+		var global_target_r = 0.4;
+		
+		document.body.appendChild(my_canvas);
+		
+		
+		var wszystkieKwadraty = [];
+		var widoczneKwadraty = [];
+		
+		var ease = 'easeOutQuart'
+		
+		var fps = 20;
+		
+		console.log(rand(10,30));
+		
+		var lastTime=0;
+		
+		animationLoop();
+		
+		function animationLoop(time)
+		{
+			requestAnimationFrame(animationLoop);
+			
+			if(time-lastTime>=1000/fps)
+			{
+				//console.log(time-lastTime);
+				lastTime=time;
+				
+				global_target_r = Math.min(0.4, global_target_r+0.01);
+				
+				//dodajemy kwadrat 15 razy:
+				if(touches.length>0){
+					for(var i=0;i<15;i++)
+					{
+						var p = touches[rand(0, touches.length-1)];
+						wszystkieKwadraty.push({
+
+												start_x : p.pageX/my_canvas.width,
+												start_y : p.pageY/my_canvas.height,
+												target_r : global_target_r,
+												start_a : rand(0, 360),
+												//
+												t:0,
+												d:2000,
+												//
+												h : rand(5,10),
+												start_r : 255,
+												start_g : rand(0,240),
+												start_b : rand(0,100),
+								
+												});
+						
+						if(wszystkieKwadraty[wszystkieKwadraty.length-1].sppedX==0 && wszystkieKwadraty[wszystkieKwadraty.length-1].sppedY==0)
+						{
+							wszystkieKwadraty[wszystkieKwadraty.length-1].sppedX=rand(1,5);
+						}
+					}
+				}
+				
+				ctx.clearRect(0,0,my_canvas.width,my_canvas.height);
+				
+				
+				widoczneKwadraty.length=0;
+				
+				for(var i=0; i<wszystkieKwadraty.length; i++)
+				{
+					var kwadrat = wszystkieKwadraty[i];
+					
+					
+					kwadrat.t += 1000/fps;
+					ctx.fillStyle = 'rgb('+kwadrat.start_r+','+kwadrat.start_g+','+kwadrat.start_b+')';
+					
+					kwadrat.r = Easing.get(ease, 0, kwadrat.target_r*my_canvas.height*(retinaBoost ? 0.5 : 1), kwadrat.t, kwadrat.d);
+					
+					kwadrat.a = Easing.get(ease, kwadrat.start_a, kwadrat.start_a+180, kwadrat.t, kwadrat.d);
+					
+					kwadrat.x = Math.sin(Math.PI/180*kwadrat.a)*kwadrat.r+kwadrat.start_x*my_canvas.width;
+					kwadrat.y = Math.cos(Math.PI/180*kwadrat.a)*kwadrat.r+kwadrat.start_y*my_canvas.height;
+					
+					if(retinaBoost)
+					{
+						kwadrat.x = kwadrat.x*2;
+						kwadrat.y = kwadrat.y*2;
+					}
+					
+					ctx.fillRect(kwadrat.x-kwadrat.h/2,kwadrat.y-kwadrat.h/2,kwadrat.h,kwadrat.h);
+					
+					if(kwadrat.t<kwadrat.d)
+					{
+						widoczneKwadraty.push(kwadrat);
+					}
+				}
+				
+				wszystkieKwadraty = widoczneKwadraty.concat();
+			
+			
+			}
+		
+		}
+		
+		function onMove(ev)
+		{
+			//console.log(ev);
+			
+			if(ev.type=='mousemove')
+			{
+				touches[0].pageX = ev.x;
+				touches[0].pageY = ev.y;
+			}
+			else
+			{
+				touches = ev.touches;
+			}
+			
+			ev.preventDefault;
+			
+			global_target_r = Math.max(0.1, global_target_r-0.01);
+		}
+		
+		function layout(ev)
+		{
+			if(retinaBoost)
+			{
+				my_canvas.width = window.innerWidth*2;
+				my_canvas.height = window.innerHeight*2; <!-- DOM document object models -->
+			}
+			else
+			{
+				my_canvas.width = window.innerWidth;
+				my_canvas.height = window.innerHeight; <!-- DOM document object models -->
+			}
+			
+		}
+		
+		function rand(min, max)
+		{
+			return Math.floor(Math.random()*(max-min+1)+min);
+		}
+		
+		</script> 
+</body> 
+
+</html> 
